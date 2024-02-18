@@ -1,0 +1,238 @@
+import pygame
+import random
+
+pygame.init()
+
+WIDTH = 600
+HEIGHT = 700
+timer = pygame.time.Clock()
+fps = 60
+screen = pygame.display.set_mode([WIDTH, HEIGHT])
+pygame.display.set_caption('Mastermind By Ved')
+font = pygame.font.Font('GOTHICB.TTF', 20)
+
+# game variables
+
+bg = (20, 16, 79)
+white = 'white'
+gray = 'gray'
+black = 'black'
+red = 'red'
+orange = 'orange'
+yellow = 'yellow'
+green = 'green'
+blue = 'blue'
+purple = 'purple'
+cyan = 'cyan'
+
+# game lists
+
+choice_colours = [red, cyan, yellow, green, blue, orange]
+answer_colours = [random.choice(choice_colours), random.choice(choice_colours),
+                 random.choice(choice_colours), random.choice(choice_colours)]
+guess_colours = [[white, white, white, white],
+                [gray, gray, gray, gray],
+                [gray, gray, gray, gray],
+                [gray, gray, gray, gray],
+                [gray, gray, gray, gray],
+                [gray, gray, gray, gray]]
+fb_colours = [[gray, gray, gray, gray],
+             [gray, gray, gray, gray],
+             [gray, gray, gray, gray],
+             [gray, gray, gray, gray],
+             [gray, gray, gray, gray],
+             [gray, gray, gray, gray]]
+selected = 0
+turn = 0
+selected_colour = white
+solved_colour = int(.65 * 255), int(.35 * 255), int(.45 * 255)
+solved = True
+menu = False
+menu_img = pygame.transform.scale(pygame.image.load('MASTERMIND BY VED.png'), (WIDTH/2, HEIGHT/2))
+check = False
+
+
+# class for Buttons
+
+class Button:
+    def __init__(self, text, coords, size):
+        self.text = text
+        self.coords = coords
+        self.size = size
+        self.rect = pygame.rect.Rect(self.coords, self.size)
+
+    def draw(self):
+        if self.rect.collidepoint(mouse_coords) and mouse_buttons[0]:
+            colour = 'light blue'
+        elif self.rect.collidepoint(mouse_coords):
+            colour = 'light gray'
+        else:
+            colour = 'dark gray'
+        pygame.draw.rect(screen, colour, self.rect)
+        pygame.draw.rect(screen, black, self.rect, 1)
+        screen.blit(font.render(self.text, True, black),
+                    (self.coords[0] + self.size[0] / 4, self.coords[1] + self.size[1] / 3))
+
+
+#drawing the screen
+
+def draw_screen():
+    # active turn rectangle
+    pygame.draw.rect(screen, 'light gray', [0, 10 * HEIGHT / 13 - turn * HEIGHT / 10 - 40, WIDTH, HEIGHT / 9.5])
+    # guess circles
+    for i in range(6):
+        for j in range(4):
+            pygame.draw.circle(screen, guess_colours[i][j], 
+                               ((WIDTH / 5 * (j + 1.5)), ((11 * HEIGHT / 13) - (HEIGHT / 10 * i) - HEIGHT / 13)),
+                               HEIGHT / 30)
+    # feedback circles
+    for i in range(6):
+        for j in range(4):
+            row = j // 2
+            col = j % 2
+            pygame.draw.circle(screen, fb_colours[i][j],
+                               (25 + (col * WIDTH / 12),
+                                ((11 * HEIGHT / 12) - (HEIGHT / 10 * i) - (HEIGHT / 20 * (row + 2.5)))),
+                               HEIGHT / 55)
+    # answer circles
+    for i in range(4):
+        pygame.draw.circle(screen, answer_colours[i], (WIDTH / 5 * (i + 1.5), HEIGHT / 26), HEIGHT / 30)
+
+    # answer cover rectangle
+    if not solved:
+        pygame.draw.rect(screen, (95, 94, 107), [WIDTH / 5, 0, 4 * WIDTH / 5, HEIGHT / 5])
+
+    # options colours to select and selected circle
+    pygame.draw.circle(screen, selected_colour, (WIDTH / 7 * (selected + 1), 11.5 * HEIGHT / 13-5), HEIGHT / 26)
+    for i in range(6):
+        pygame.draw.circle(screen, choice_colours[i], (WIDTH / 7 * (i + 1), 11.5 * HEIGHT / 13-5), HEIGHT / 30)
+
+    # buttons
+    menu_btn.draw()
+    submit_btn.draw()
+    restart_btn.draw()
+
+    # horizontal lines
+    pygame.draw.line(screen, white, (0,HEIGHT-130),(WIDTH,HEIGHT-130),8)
+    pygame.draw.line(screen, white, (0,HEIGHT/5),(WIDTH,HEIGHT/5),8)
+
+    # vertical lines
+    pygame.draw.line(screen, white, (WIDTH / 5, 0), (WIDTH / 5, 11 * HEIGHT / 13.4), 9)
+    pygame.draw.line(screen, bg, (0, 0), (0, HEIGHT), 3)
+    pygame.draw.line(screen, bg, (WIDTH - 1, 0), (WIDTH - 1, HEIGHT), 3)
+
+
+def draw_menu():
+    pygame.draw.rect(screen, white, [WIDTH / 4 , HEIGHT / 4, WIDTH / 2 ,HEIGHT / 2])
+    screen.blit(menu_img, (WIDTH/4, HEIGHT/4))
+
+
+def check_guess():
+    global solved, menu
+    check_turn = guess_colours[turn]
+    responses = [gray, gray, gray, gray]
+    response_index = 0
+    for i in range(4):
+        if check_turn[i] == answer_colours[i]:
+            responses[response_index] = red
+            response_index += 1
+        elif check_turn[i] in answer_colours:
+            guess_count = check_turn.count(check_turn[i])
+            answer_count = answer_colours.count(check_turn[i])
+            only_input = (guess_count == 1) # true or false if this guess only appears once
+            several_outputs = (answer_count >= guess_count) # t or f if more in ans than guess
+            these_indexes = []
+            answer_indexes = []
+            for j in range(4):
+                if check_turn[j] == check_turn[i] and check_turn[j] != answer_colours[j]:
+                    these_indexes.append(j)
+                if answer_colours[j] == check_turn[i] and check_turn[j] != answer_colours[j]:
+                    answer_indexes.append(j)
+            count_this = these_indexes.index(i) < len(answer_indexes)
+            if only_input or several_outputs or count_this:
+                responses[response_index] = white
+                response_index += 1
+        else:
+          responses[response_index] = gray
+          response_index += 1
+
+    fb_colours[turn] = responses
+    if responses.count(red) == 4:
+        solved = True
+        menu = True
+
+
+run = True
+menu_btn = Button('MENU', (0, 0), (WIDTH / 5, HEIGHT / 5))
+submit_btn = Button('SUBMIT', (0, 12 * HEIGHT / 13), (WIDTH / 2, HEIGHT / 13))
+restart_btn = Button('RESTART', (WIDTH / 2, 12 * HEIGHT / 13), (WIDTH / 2, HEIGHT / 13))
+solved = False
+
+#main loop 
+
+while run:
+    timer.tick(fps)
+    screen.fill(bg)
+    mouse_coords = pygame.mouse.get_pos()
+    mouse_buttons = pygame.mouse.get_pressed()
+
+    draw_screen()
+    if menu:
+        draw_menu()
+    if check:
+        check_guess()
+        turn += 1
+        for i in range(4):
+            guess_colours[turn][i] = white
+        check = False
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if restart_btn.rect.collidepoint(event.pos):
+                menu = False
+                turn = 0
+                solved = False
+                answer_colours = [random.choice(choice_colours), random.choice(choice_colours),
+                                 random.choice(choice_colours), random.choice(choice_colours)]
+                guess_colours = [[white, white, white, white],
+                                [gray, gray, gray, gray],
+                                [gray, gray, gray, gray],
+                                [gray, gray, gray, gray],
+                                [gray, gray, gray, gray],
+                                [gray, gray, gray, gray],
+                                [gray, gray, gray, gray],
+                                [gray, gray, gray, gray],
+                                [gray, gray, gray, gray],
+                                [gray, gray, gray, gray]]
+                fb_colours = [[gray, gray, gray, gray],
+                             [gray, gray, gray, gray],
+                             [gray, gray, gray, gray],
+                             [gray, gray, gray, gray],
+                             [gray, gray, gray, gray],
+                             [gray, gray, gray, gray],
+                             [gray, gray, gray, gray],
+                             [gray, gray, gray, gray],
+                             [gray, gray, gray, gray],
+                             [gray, gray, gray, gray]]
+            elif menu_btn.rect.collidepoint(event.pos):
+                if not menu:
+                    menu = True
+                else:
+                    menu = False
+            if not menu:
+                if WIDTH / 14 < event.pos[0] < 13 * WIDTH / 14 \
+                        and 11 * HEIGHT / 13 < event.pos[1] < 12 * HEIGHT / 13:
+                    x_pos = event.pos[0] // (WIDTH / 14)
+                    selected = int((x_pos - 1) // 2)
+                elif WIDTH / 5 < event.pos[0] \
+                        and (10 - turn) * HEIGHT / 13 < event.pos[1] < (11 - turn) * HEIGHT / 13:
+                    x_pos = int(event.pos[0] // (WIDTH / 5))
+                    guess_colours[turn][x_pos - 1] = choice_colours[selected]
+                elif submit_btn.rect.collidepoint(event.pos):
+                    if white not in guess_colours[turn]:
+                        check = True
+
+    pygame.display.flip()
+pygame.quit()
